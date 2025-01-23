@@ -195,36 +195,43 @@ class HomePage extends StatelessWidget {
             
             const SizedBox(height: 20),
             
-            // Recent Cases Section
-            const Text(
-              'Recent Cases',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            // Camera Button Section
+            Center(
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement camera functionality
+                    },
+                    icon: const Icon(Icons.camera_alt, size: 32),
+                    label: const Text(
+                      'Report Animal in Need',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Take a photo to report an animal in distress',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              itemBuilder: (context, index) {
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      child: const Icon(Icons.pets),
-                    ),
-                    title: Text('Case #${index + 1}'),
-                    subtitle: const Text('Injured street dog found in sector 12'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      // Navigate to case details
-                    },
-                  ),
-                );
-              },
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
