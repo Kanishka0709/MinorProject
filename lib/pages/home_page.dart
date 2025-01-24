@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pashurakshak/main.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:io';
 
 class HeroInfo {
   final String name;
@@ -16,11 +20,25 @@ class HeroInfo {
   });
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final String username;
   
-  HomePage({super.key, required this.username});
+  const HomePage({super.key, required this.username});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final ImagePicker _picker = ImagePicker();
+  final _formKey = GlobalKey<FormState>();
+  
+  // Form controllers
+  final _reporterNameController = TextEditingController();
+  final _contactNumberController = TextEditingController();
+  final _landmarkController = TextEditingController();
+  String _selectedAnimalType = 'Dog'; // Default value
+  
   static const List<HeroInfo> heroes = [
     HeroInfo(
       name: 'Dr. Rajesh Kumar',
@@ -42,6 +60,155 @@ class HomePage extends StatelessWidget {
     ),
   ];
 
+  Future<void> _takePicture() async {
+    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+    
+    if (photo != null && mounted) {
+      // Show confirmation dialog
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Image.file(File(photo.path)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showReportForm(photo);
+                },
+                child: const Text('Confirm'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  Future<void> _showReportForm(XFile photo) async {
+    // Get current location
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high
+      );
+    } catch (e) {
+      position = Position(
+        latitude: 0,
+        longitude: 0,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Report Details'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _reporterNameController,
+                    decoration: const InputDecoration(labelText: 'Your Name *'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: _contactNumberController,
+                    decoration: const InputDecoration(labelText: 'Contact Number *'),
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter contact number';
+                      }
+                      return null;
+                    },
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: _selectedAnimalType,
+                    decoration: const InputDecoration(labelText: 'Animal Type *'),
+                    items: ['Dog', 'Cat', 'Cow', 'Bird', 'Other']
+                        .map((type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedAnimalType = value!;
+                      });
+                    },
+                  ),
+                  TextFormField(
+                    controller: _landmarkController,
+                    decoration: const InputDecoration(labelText: 'Landmark *'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a landmark';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Location: ${position.latitude}, ${position.longitude}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  Text(
+                    'Report Time: ${DateTime.now().toString()}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  // TODO: Submit the report
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Report submitted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,191 +217,191 @@ class HomePage extends StatelessWidget {
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero section
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.pets, size: 50),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Help Animals in Need',
-                      style: Theme.of(context).textTheme.headlineMedium,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                // Heroes Carousel at top
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: CarouselSlider(
+                    options: CarouselOptions(
+                      height: 200,
+                      autoPlay: true,
+                      enlargeCenterPage: true,
+                      aspectRatio: 2.0,
+                      viewportFraction: 0.9,
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            // Heroes Carousel
-            CarouselSlider.builder(
-              itemCount: heroes.length,
-              options: CarouselOptions(
-                height: 150,
-                autoPlay: true,
-                enlargeCenterPage: true,
-                viewportFraction: 0.9,
-                aspectRatio: 2.0,
-                initialPage: 0,
-                autoPlayInterval: const Duration(seconds: 3),
-                autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                autoPlayCurve: Curves.fastOutSlowIn,
-              ),
-              itemBuilder: (context, index, realIndex) {
-                return Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    items: heroes.map((hero) {
+                      return Builder(
+                        builder: (BuildContext context) {
+                          return Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 35,
+                                    backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                                    child: Icon(
+                                      hero.icon,
+                                      size: 35,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          hero.name,
+                                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          hero.description,
+                                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                color: Colors.grey[600],
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }).toList(),
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Theme.of(context).colorScheme.secondary,
-                          Theme.of(context).colorScheme.tertiary,
-                        ],
-                      ),
-                    ),
-                    child: Row(
+                ),
+                
+                // Spacer to push content to center
+                const SizedBox(height: 80),
+                
+                // Centered Report Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white.withOpacity(0.9),
-                          child: Icon(
-                            heroes[index].icon,
-                            size: 30,
-                            color: Theme.of(context).primaryColor,
+                        Container(
+                          width: double.infinity,
+                          height: 60,
+                          child: ElevatedButton.icon(
+                            onPressed: _takePicture,
+                            icon: const Icon(Icons.camera_alt, size: 28),
+                            label: const Text(
+                              'Report Animal in Need',
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                heroes[index].name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                heroes[index].description,
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                heroes[index].achievement,
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.95),
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'Take a photo to report',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+                ),
+                
+                // Bottom spacing
+                const SizedBox(height: 80),
+              ],
             ),
-            
-            const SizedBox(height: 20),
-            
-            // Emergency Contact Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Emergency Contacts',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+          ),
+          
+          // Emergency Call Button
+          Positioned(
+            left: 16,
+            bottom: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: () async {
+                  final Uri phoneUri = Uri.parse('tel:139');
+                  try {
+                    if (await canLaunchUrl(phoneUri)) {
+                      await launchUrl(phoneUri);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Could not launch emergency dialer'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Error launching emergency dialer'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.red,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ListTile(
-                      leading: const Icon(Icons.phone),
-                      title: const Text('Animal Helpline'),
-                      subtitle: const Text('1800-XXX-XXXX'),
-                      onTap: () {
-                        // Add phone call functionality
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.phone,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ),
             ),
-            
-            const SizedBox(height: 20),
-            
-            // Camera Button Section
-            Center(
-              child: Column(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement camera functionality
-                    },
-                    icon: const Icon(Icons.camera_alt, size: 32),
-                    label: const Text(
-                      'Report Animal in Need',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Take a photo to report an animal in distress',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _reporterNameController.dispose();
+    _contactNumberController.dispose();
+    _landmarkController.dispose();
+    super.dispose();
   }
 } 
